@@ -82,45 +82,29 @@ bot.catch((err: unknown, ctx: Context<Update>) => {
   }
 });
 
-// Start the bot
-const startBot = async () => {
-  try {
-    console.log('⚙️ Initializing bot...');
-    await bot.launch();
-    console.log('✅ Bot successfully started!');
-    console.log('🤖 Bot username:', bot.botInfo?.username);
-    console.log('📊 Bot info:', {
-      id: bot.botInfo?.id,
-      firstName: bot.botInfo?.first_name,
-      canJoinGroups: bot.botInfo?.can_join_groups,
-      canReadAllGroupMessages: bot.botInfo?.can_read_all_group_messages
-    });
-  } catch (err) {
-    console.error('❌ Failed to start bot:', err);
-    if (err instanceof Error) {
-      console.error('Error details:', {
-        name: err.name,
-        message: err.message,
-        stack: err.stack
-      });
-    }
-    process.exit(1);
-  }
-};
-
-// Enable graceful stop
-process.once('SIGINT', () => {
-  console.log('🛑 Received SIGINT signal, stopping bot...');
-  bot.stop('SIGINT');
-});
-
-process.once('SIGTERM', () => {
-  console.log('🛑 Received SIGTERM signal, stopping bot...');
-  bot.stop('SIGTERM');
-});
-
-// Start the bot
-startBot();
-
 // Export for Vercel
-export default bot; 
+export default async function handler(req, res) {
+  if (req.method === 'POST') {
+    try {
+      await bot.handleUpdate(req.body);
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error('Error handling update:', error);
+      res.status(500).json({ error: 'Failed to process update' });
+    }
+  } else {
+    res.status(200).json({ ok: true, message: 'Bot is running' });
+  }
+}
+
+// Start webhook mode if not in development
+if (process.env.NODE_ENV !== 'development') {
+  const webhookUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}/api/webhook`
+    : process.env.WEBHOOK_URL;
+
+  if (webhookUrl) {
+    bot.telegram.setWebhook(webhookUrl);
+    console.log('Webhook set to:', webhookUrl);
+  }
+} 
