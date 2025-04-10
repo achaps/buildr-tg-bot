@@ -9,6 +9,18 @@ import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
 
+// Fonction utilitaire pour les retries
+const retry = async (fn: () => Promise<any>, retries = 3, delay = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 0) throw error;
+    console.log(`⚠️ Retry attempt ${4 - retries}/3...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retry(fn, retries - 1, delay * 2);
+  }
+};
+
 // Vérification des variables d'environnement
 console.log('🔍 Environment variables loaded successfully');
 
@@ -24,15 +36,15 @@ console.log('✅ Bot token format is valid');
 
 const bot = new Telegraf(env.BOT_TOKEN);
 
-// Test de connexion à l'API Telegram
+// Test de connexion à l'API Telegram avec retry
 console.log('🔌 Testing connection to Telegram API...');
-bot.telegram.getMe()
+retry(() => bot.telegram.getMe())
   .then((botInfo) => {
     console.log('✅ Successfully connected to Telegram API');
     console.log('Bot info:', botInfo);
   })
   .catch((error) => {
-    console.error('❌ Failed to connect to Telegram API:', error);
+    console.error('❌ Failed to connect to Telegram API after retries:', error);
     process.exit(1);
   });
 
@@ -123,23 +135,23 @@ if (process.env.NODE_ENV !== 'development') {
     console.log('🔄 Setting up webhook...');
     console.log('📍 Webhook URL:', webhookUrl);
     
-    // Delete any existing webhook first
-    bot.telegram.deleteWebhook()
+    // Delete any existing webhook first with retry
+    retry(() => bot.telegram.deleteWebhook())
       .then(() => {
         console.log('✅ Existing webhook deleted');
-        // Set the new webhook
-        return bot.telegram.setWebhook(webhookUrl);
+        // Set the new webhook with retry
+        return retry(() => bot.telegram.setWebhook(webhookUrl));
       })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
-        // Verify webhook info
-        return bot.telegram.getWebhookInfo();
+        // Verify webhook info with retry
+        return retry(() => bot.telegram.getWebhookInfo());
       })
       .then((info) => {
         console.log('ℹ️ Webhook info:', info);
       })
       .catch((error) => {
-        console.error('❌ Error setting webhook:', error);
+        console.error('❌ Error setting webhook after retries:', error);
         if (error.response) {
           console.error('Error response:', error.response.data);
         }
