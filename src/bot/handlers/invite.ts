@@ -15,9 +15,9 @@ export const handleInvite = async (ctx: Context) => {
     const inviteLink = `https://t.me/${ctx.botInfo?.username}?start=${telegramId}`;
     
     // Message avec le lien d'invitation
-    const message = `🎁 Invitez vos amis et gagnez ${REFERRAL_BONUS} points pour chaque personne qui rejoint!\n\n` +
-                   `Votre lien d'invitation :\n${inviteLink}\n\n` +
-                   `Partagez ce lien avec vos amis. Quand ils rejoignent le bot, vous gagnez des points !`;
+    const message = `🎁 Invite your friends to BUILDR Network and earn ${REFERRAL_BONUS} pBUILDR for each person who joins!\n\n` +
+                   `Your invite link:\n${inviteLink}\n\n` +
+                   `Share this link with your friends. When they join the bot, you'll earn pBUILDR rewards!`;
 
     await ctx.reply(message);
   } catch (error: unknown) {

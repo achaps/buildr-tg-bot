@@ -23,10 +23,10 @@ export const handleReferrals = async (ctx: Context) => {
     const totalPointsEarned = referralCount * REFERRAL_BONUS;
 
     // Message avec les statistiques
-    const message = `📊 Vos statistiques d'invitation :\n\n` +
-                   `👥 Nombre de personnes invitées : ${referralCount}\n` +
-                   `💰 Points gagnés via les invitations : ${formatPoints(totalPointsEarned)}\n\n` +
-                   `Utilisez /invite pour générer un nouveau lien d'invitation !`;
+    const message = `📊 Your referral statistics:\n\n` +
+                   `👥 People invited: ${referralCount}\n` +
+                   `💰 Points earned from referrals: ${formatPoints(totalPointsEarned)}\n\n` +
+                   `Use /invite to generate a new invitation link!`;
 
     await ctx.reply(message);
   } catch (error: unknown) {
