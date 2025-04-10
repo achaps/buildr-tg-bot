@@ -15,15 +15,19 @@ console.log('🔍 Environment variables loaded successfully');
 console.log('🚀 Starting bot initialization...');
 
 // Vérification du token du bot
-if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
-  console.error('❌ Invalid bot token format. Expected format: bot<bot_id>:<token>');
+if (!env.BOT_TOKEN.match(/^\d+:[A-Za-z0-9_-]{35}$/)) {
+  console.error('❌ Invalid bot token format. Expected format: <bot_id>:<token>');
   process.exit(1);
 }
 
 console.log('✅ Bot token format is valid');
 
+// Ajouter le préfixe "bot" au token s'il n'est pas déjà présent
+const tokenWithPrefix = env.BOT_TOKEN.startsWith('bot') ? env.BOT_TOKEN : `bot${env.BOT_TOKEN}`;
+console.log('🔑 Using token with prefix:', tokenWithPrefix.substring(0, 10) + '...');
+
 // Créer une instance Telegraf avec une configuration personnalisée
-const bot = new Telegraf(env.BOT_TOKEN, {
+const bot = new Telegraf(tokenWithPrefix, {
   telegram: {
     apiRoot: 'https://api.telegram.org',
     webhookReply: false
@@ -32,7 +36,7 @@ const bot = new Telegraf(env.BOT_TOKEN, {
 
 // Test de connexion à l'API Telegram
 console.log('🔌 Testing connection to Telegram API...');
-console.log('🔑 Using bot token:', env.BOT_TOKEN.substring(0, 10) + '...');
+console.log('�� Using bot token:', tokenWithPrefix.substring(0, 10) + '...');
 
 bot.telegram.getMe()
   .then((botInfo) => {
