@@ -58,7 +58,7 @@ console.log('✅ Bot token format is valid');
 // Créer une instance Telegraf avec des options personnalisées
 const bot = new Telegraf(env.BOT_TOKEN, {
   telegram: {
-    apiRoot: `https://api.telegram.org/bot${env.BOT_TOKEN}`,
+    apiRoot: 'https://api.telegram.org',
     webhookReply: false
   }
 });
