@@ -1,29 +1,24 @@
 {
-  "name": "buildr-telegram-bot",
+  "name": "buildr-tg-bot",
   "version": "1.0.0",
-  "description": "Telegram bot for Buildr with points, referrals, and daily check-in system",
-  "main": "src/index.ts",
+  "description": "Telegram bot for Buildr Network",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "lint": "eslint . --ext .ts"
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "set-webhook": "ts-node scripts/set-webhook.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.3",
-    "@types/express": "^5.0.1",
-    "dayjs": "^1.11.10",
-    "dotenv": "^16.4.1",
-    "express": "^5.1.0",
-    "telegraf": "^4.15.3",
+    "@supabase/supabase-js": "^2.39.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "telegraf": "^4.16.3",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "^20.11.16",
-    "@typescript-eslint/eslint-plugin": "^7.0.1",
-    "@typescript-eslint/parser": "^7.0.1",
-    "eslint": "^8.56.0",
-    "nodemon": "^3.0.3",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.24",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
