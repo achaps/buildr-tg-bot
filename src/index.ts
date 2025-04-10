@@ -12,8 +12,21 @@ import { Request, Response } from 'express';
 // Vérification des variables d'environnement
 console.log('🔍 Environment variables loaded successfully');
 
-// Créer une instance Telegraf standard
-const bot = new Telegraf(env.BOT_TOKEN);
+// Vérification du token
+const token = env.BOT_TOKEN;
+console.log('🔑 Token check:', {
+  length: token.length,
+  startsWithBot: token.startsWith('bot'),
+  containsColon: token.includes(':'),
+  format: token.substring(0, 10) + '...'
+});
+
+// S'assurer que le token commence par "bot"
+const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
+console.log('🧹 Cleaned token format:', cleanToken.substring(0, 10) + '...');
+
+// Créer une instance Telegraf avec le token nettoyé
+const bot = new Telegraf(cleanToken);
 
 // Register message handler for group activity
 bot.on('message', async (ctx, next) => {
