@@ -25,19 +25,38 @@ console.log('🔑 Token check:', {
 const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
 console.log('🧹 Cleaned token format:', cleanToken.substring(0, 10) + '...');
 
-// Créer une instance Telegraf avec le token nettoyé
-const bot = new Telegraf(cleanToken);
+// Créer une instance Telegraf avec le token nettoyé et des options de timeout
+const bot = new Telegraf(cleanToken, {
+  handlerTimeout: 90000 // 90 secondes
+});
 
 // Register message handler for group activity
 bot.on('message', async (ctx, next) => {
-  if (ctx.chat?.type === 'supergroup' && ctx.chat.username === 'buildr_network') {
+  console.log('📨 Received message:', {
+    chatId: ctx.chat?.id,
+    chatType: ctx.chat?.type,
+    username: 'username' in ctx.chat ? ctx.chat.username : 'N/A',
+    text: ctx.message && 'text' in ctx.message ? ctx.message.text : 'N/A'
+  });
+
+  if (ctx.chat?.type === 'supergroup' && 'username' in ctx.chat && ctx.chat.username === 'buildr_network') {
     await handleGroupMessage(ctx);
   }
   return next();
 });
 
 // Register command handlers with group verification
-bot.command('start', handleStart);
+bot.command('start', async (ctx) => {
+  console.log('🚀 Start command received from:', ctx.from?.username);
+  try {
+    await handleStart(ctx);
+    console.log('✅ Start command handled successfully');
+  } catch (error) {
+    console.error('❌ Error handling start command:', error);
+    throw error;
+  }
+});
+
 bot.command('points', verifyGroupMembership, handlePoints);
 bot.command('daily', verifyGroupMembership, handleDaily);
 bot.command('leaderboard', verifyGroupMembership, handleLeaderboard);
@@ -120,8 +139,11 @@ if (process.env.NODE_ENV !== 'development') {
     bot.telegram.deleteWebhook()
       .then(() => {
         console.log('✅ Existing webhook deleted');
-        // Configurer le nouveau webhook
-        return bot.telegram.setWebhook(webhookUrl);
+        // Configurer le nouveau webhook avec des options de connexion
+        return bot.telegram.setWebhook(webhookUrl, {
+          max_connections: 40,
+          allowed_updates: ['message', 'callback_query']
+        });
       })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
