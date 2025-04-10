@@ -5,6 +5,7 @@ import { handleStart } from './bot/handlers/start';
 import { handlePoints } from './bot/handlers/points';
 import { handleDaily } from './bot/handlers/daily';
 import { handleLeaderboard } from './bot/handlers/leaderboard';
+import { Request, Response } from 'express';
 
 // Vérification des variables d'environnement
 console.log('🔍 Checking environment variables...');
@@ -83,7 +84,7 @@ bot.catch((err: unknown, ctx: Context<Update>) => {
 });
 
 // Export for Vercel
-export default async function handler(req, res) {
+export default async function handler(req: Request, res: Response) {
   if (req.method === 'POST') {
     try {
       await bot.handleUpdate(req.body);

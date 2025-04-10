@@ -4,6 +4,9 @@ import { handleStart } from '../src/bot/handlers/start';
 import { handlePoints } from '../src/bot/handlers/points';
 import { handleDaily } from '../src/bot/handlers/daily';
 import { handleLeaderboard } from '../src/bot/handlers/leaderboard';
+import { handleInvite } from '../src/bot/handlers/invite';
+import { handleReferrals } from '../src/bot/handlers/referrals';
+import { Request, Response } from 'express';
 
 const bot = new Telegraf(env.BOT_TOKEN);
 
@@ -28,6 +31,16 @@ bot.command('leaderboard', (ctx) => {
   return handleLeaderboard(ctx);
 });
 
+bot.command('invite', (ctx) => {
+  console.log('📥 Received /invite command from user:', ctx.from?.id, 'username:', ctx.from?.username);
+  return handleInvite(ctx);
+});
+
+bot.command('referrals', (ctx) => {
+  console.log('📥 Received /referrals command from user:', ctx.from?.id, 'username:', ctx.from?.username);
+  return handleReferrals(ctx);
+});
+
 // Error handling
 bot.catch((err: unknown, ctx) => {
   console.error('❌ Bot error:', err);
@@ -38,7 +51,7 @@ bot.catch((err: unknown, ctx) => {
   }
 });
 
-export default async function handler(req, res) {
+export default async function handler(req: Request, res: Response) {
   if (req.method === 'POST') {
     try {
       await bot.handleUpdate(req.body);
