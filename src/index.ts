@@ -74,6 +74,9 @@ bot.catch((err: unknown, ctx: Context<Update>) => {
 export default async function handler(req: Request, res: Response) {
   if (req.method === 'POST') {
     try {
+      // Log the incoming update for debugging
+      console.log('Received update in index:', JSON.stringify(req.body, null, 2));
+      
       await bot.handleUpdate(req.body);
       res.status(200).json({ ok: true });
     } catch (error) {
@@ -92,7 +95,17 @@ if (process.env.NODE_ENV !== 'development') {
     : process.env.WEBHOOK_URL;
 
   if (webhookUrl) {
-    bot.telegram.setWebhook(webhookUrl);
-    console.log('Webhook set to:', webhookUrl);
+    // Delete any existing webhook first
+    bot.telegram.deleteWebhook()
+      .then(() => {
+        // Set the new webhook
+        return bot.telegram.setWebhook(webhookUrl);
+      })
+      .then(() => {
+        console.log('✅ Webhook successfully set to:', webhookUrl);
+      })
+      .catch((error) => {
+        console.error('❌ Error setting webhook:', error);
+      });
   }
 } 
