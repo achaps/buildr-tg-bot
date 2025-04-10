@@ -18,16 +18,20 @@ const httpsAgent = new Agent({
   rejectUnauthorized: true
 });
 
-const api = axios.create({
-  baseURL: `https://api.telegram.org/bot${env.BOT_TOKEN}`,
+// Créer une instance axios pour l'API Telegram
+const telegramApi = axios.create({
+  baseURL: 'https://api.telegram.org',
   timeout: 30000,
   httpsAgent
 });
 
 // Fonction utilitaire pour les retries avec axios
-const retryWithAxios = async (method: string, url: string, data?: any, retries = 5, delay = 1000) => {
+const retryWithAxios = async (method: string, endpoint: string, data?: any, retries = 5, delay = 1000) => {
   try {
-    const response = await api.request({
+    const url = `/bot${env.BOT_TOKEN}${endpoint}`;
+    console.log(`🔄 Making request to: ${method} ${url}`);
+    
+    const response = await telegramApi.request({
       method,
       url,
       data,
@@ -38,7 +42,7 @@ const retryWithAxios = async (method: string, url: string, data?: any, retries =
     if (retries === 0) throw error;
     console.log(`⚠️ Retry attempt ${6 - retries}/5...`);
     await new Promise(resolve => setTimeout(resolve, delay));
-    return retryWithAxios(method, url, data, retries - 1, delay * 2);
+    return retryWithAxios(method, endpoint, data, retries - 1, delay * 2);
   }
 };
 
@@ -55,13 +59,8 @@ if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
 
 console.log('✅ Bot token format is valid');
 
-// Créer une instance Telegraf avec des options personnalisées
-const bot = new Telegraf(env.BOT_TOKEN, {
-  telegram: {
-    apiRoot: 'https://api.telegram.org',
-    webhookReply: false
-  }
-});
+// Créer une instance Telegraf standard
+const bot = new Telegraf(env.BOT_TOKEN);
 
 // Test de connexion à l'API Telegram avec retry et axios
 console.log('🔌 Testing connection to Telegram API...');
@@ -129,13 +128,9 @@ export default async function handler(req: Request, res: Response) {
       // Log the incoming update for debugging
       console.log('📦 Processing update:', JSON.stringify(req.body, null, 2));
       
-      // Utiliser notre instance axios personnalisée pour envoyer la réponse
-      const update = req.body;
-      await bot.handleUpdate(update);
-      
-      // Envoyer la réponse manuellement
-      if (update.message && update.message.chat && update.message.chat.id) {
-        const chatId = update.message.chat.id;
+      // Traiter la commande /start directement
+      if (req.body.message && req.body.message.text === '/start') {
+        const chatId = req.body.message.chat.id;
         const text = "👋 Welcome to BUILDR Network Bot!\n\nI'm here to help you earn points and participate in our community.";
         
         try {
@@ -145,13 +140,28 @@ export default async function handler(req: Request, res: Response) {
             parse_mode: 'HTML'
           });
           console.log('✅ Welcome message sent successfully');
+          return res.status(200).json({ ok: true });
         } catch (error) {
           console.error('❌ Error sending welcome message:', error);
+          return res.status(500).json({ 
+            error: 'Failed to send welcome message',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          });
         }
       }
       
-      console.log('✅ Update processed successfully');
-      return res.status(200).json({ ok: true });
+      // Pour les autres types de messages, utiliser Telegraf
+      try {
+        await bot.handleUpdate(req.body);
+        console.log('✅ Update processed successfully');
+        return res.status(200).json({ ok: true });
+      } catch (error) {
+        console.error('❌ Error handling update with Telegraf:', error);
+        return res.status(500).json({ 
+          error: 'Failed to process update with Telegraf',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     } catch (error) {
       console.error('❌ Error handling update:', error);
       if (error instanceof Error) {
