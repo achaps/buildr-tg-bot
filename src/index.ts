@@ -41,10 +41,9 @@ const telegramApi = axios.create({
 // Fonction utilitaire pour les appels à l'API Telegram
 const callTelegramApi = async (method: string, data?: any) => {
   try {
-    // Construire l'URL en fonction du format du token
-    const url = token.startsWith('bot') 
-      ? `/${token}/${method}` 
-      : `/bot${token}/${method}`;
+    // S'assurer que le token n'a qu'un seul préfixe "bot"
+    const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
+    const url = `/${cleanToken}/${method}`;
     
     console.log(`🔄 Making request to: ${method}`);
     if (data) {
