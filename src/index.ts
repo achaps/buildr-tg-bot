@@ -28,7 +28,9 @@ const telegramApi = axios.create({
 // Fonction utilitaire pour les retries avec axios
 const retryWithAxios = async (method: string, endpoint: string, data?: any, retries = 5, delay = 1000) => {
   try {
-    const url = `/bot${env.BOT_TOKEN}${endpoint}`;
+    // Vérifier si le token commence déjà par "bot"
+    const token = env.BOT_TOKEN.startsWith('bot') ? env.BOT_TOKEN : `bot${env.BOT_TOKEN}`;
+    const url = `/${token}${endpoint}`;
     console.log(`🔄 Making request to: ${method} ${url}`);
     
     const response = await telegramApi.request({
