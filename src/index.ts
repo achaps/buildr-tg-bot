@@ -21,7 +21,7 @@ console.log('🔑 Token check:', {
   format: token.substring(0, 10) + '...'
 });
 
-// S'assurer que le token commence par "bot"
+// S'assurer que le token commence par "bot" mais éviter le double préfixe
 const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
 console.log('🧹 Cleaned token format:', cleanToken.substring(0, 10) + '...');
 
@@ -116,7 +116,13 @@ if (process.env.NODE_ENV !== 'development') {
     console.log('🔄 Setting up webhook...');
     console.log('📍 Webhook URL:', webhookUrl);
     
-    bot.telegram.setWebhook(webhookUrl)
+    // Supprimer d'abord le webhook existant
+    bot.telegram.deleteWebhook()
+      .then(() => {
+        console.log('✅ Existing webhook deleted');
+        // Configurer le nouveau webhook
+        return bot.telegram.setWebhook(webhookUrl);
+      })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
         return bot.telegram.getWebhookInfo();
