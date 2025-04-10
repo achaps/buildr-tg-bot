@@ -22,8 +22,13 @@ if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
 
 console.log('✅ Bot token format is valid');
 
-// Créer une instance Telegraf standard
-const bot = new Telegraf(env.BOT_TOKEN);
+// Créer une instance Telegraf avec une configuration personnalisée
+const bot = new Telegraf(env.BOT_TOKEN, {
+  telegram: {
+    apiRoot: 'https://api.telegram.org',
+    webhookReply: false
+  }
+});
 
 // Test de connexion à l'API Telegram
 console.log('🔌 Testing connection to Telegram API...');
