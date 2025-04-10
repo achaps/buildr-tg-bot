@@ -72,19 +72,44 @@ bot.catch((err: unknown, ctx: Context<Update>) => {
 
 // Export for Vercel
 export default async function handler(req: Request, res: Response) {
+  console.log('📥 Received request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body
+  });
+
   if (req.method === 'POST') {
     try {
+      // Validate the request body
+      if (!req.body) {
+        console.error('❌ No request body received');
+        return res.status(400).json({ error: 'No request body' });
+      }
+
       // Log the incoming update for debugging
-      console.log('Received update in index:', JSON.stringify(req.body, null, 2));
+      console.log('📦 Processing update:', JSON.stringify(req.body, null, 2));
       
       await bot.handleUpdate(req.body);
-      res.status(200).json({ ok: true });
+      console.log('✅ Update processed successfully');
+      return res.status(200).json({ ok: true });
     } catch (error) {
-      console.error('Error handling update:', error);
-      res.status(500).json({ error: 'Failed to process update' });
+      console.error('❌ Error handling update:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      return res.status(500).json({ 
+        error: 'Failed to process update',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   } else {
-    res.status(200).json({ ok: true, message: 'Bot is running' });
+    console.log('ℹ️ Received non-POST request');
+    return res.status(200).json({ ok: true, message: 'Bot is running' });
   }
 }
 
@@ -95,17 +120,33 @@ if (process.env.NODE_ENV !== 'development') {
     : process.env.WEBHOOK_URL;
 
   if (webhookUrl) {
+    console.log('🔄 Setting up webhook...');
+    console.log('📍 Webhook URL:', webhookUrl);
+    
     // Delete any existing webhook first
     bot.telegram.deleteWebhook()
       .then(() => {
+        console.log('✅ Existing webhook deleted');
         // Set the new webhook
         return bot.telegram.setWebhook(webhookUrl);
       })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
+        // Verify webhook info
+        return bot.telegram.getWebhookInfo();
+      })
+      .then((info) => {
+        console.log('ℹ️ Webhook info:', info);
       })
       .catch((error) => {
         console.error('❌ Error setting webhook:', error);
+        if (error.response) {
+          console.error('Error response:', error.response.data);
+        }
       });
+  } else {
+    console.error('❌ No webhook URL available. Please check VERCEL_URL and WEBHOOK_URL environment variables.');
   }
+} else {
+  console.log('🔧 Development mode detected, skipping webhook setup');
 } 
