@@ -8,7 +8,7 @@ import { handleLeaderboard } from './bot/handlers/leaderboard';
 import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Agent } from 'https';
 
 // Configuration d'axios avec un agent HTTPS personnalisé
@@ -32,6 +32,9 @@ const retryWithAxios = async (method: string, endpoint: string, data?: any, retr
     const token = env.BOT_TOKEN.startsWith('bot') ? env.BOT_TOKEN : `bot${env.BOT_TOKEN}`;
     const url = `/${token}${endpoint}`;
     console.log(`🔄 Making request to: ${method} ${url}`);
+    if (data) {
+      console.log('📦 Request data:', JSON.stringify(data, null, 2));
+    }
     
     const response = await telegramApi.request({
       method,
@@ -39,8 +42,18 @@ const retryWithAxios = async (method: string, endpoint: string, data?: any, retr
       data,
       timeout: 30000
     });
+    console.log(`✅ Request successful: ${method} ${url}`);
     return response.data;
   } catch (error) {
+    if (error instanceof AxiosError) {
+      console.error(`❌ Request failed: ${method} ${endpoint}`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
+    }
+    
     if (retries === 0) throw error;
     console.log(`⚠️ Retry attempt ${6 - retries}/5...`);
     await new Promise(resolve => setTimeout(resolve, delay));
@@ -66,6 +79,7 @@ const bot = new Telegraf(env.BOT_TOKEN);
 
 // Test de connexion à l'API Telegram avec retry et axios
 console.log('🔌 Testing connection to Telegram API...');
+console.log('🔑 Using bot token:', env.BOT_TOKEN.substring(0, 10) + '...');
 retryWithAxios('GET', '/getMe')
   .then((botInfo) => {
     console.log('✅ Successfully connected to Telegram API');
@@ -73,6 +87,9 @@ retryWithAxios('GET', '/getMe')
   })
   .catch((error) => {
     console.error('❌ Failed to connect to Telegram API after retries:', error);
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+    }
     process.exit(1);
   });
 
@@ -136,18 +153,23 @@ export default async function handler(req: Request, res: Response) {
         const text = "👋 Welcome to BUILDR Network Bot!\n\nI'm here to help you earn points and participate in our community.";
         
         try {
-          await retryWithAxios('POST', '/sendMessage', {
+          console.log('📤 Sending welcome message to chat:', chatId);
+          const response = await retryWithAxios('POST', '/sendMessage', {
             chat_id: chatId,
             text: text,
             parse_mode: 'HTML'
           });
-          console.log('✅ Welcome message sent successfully');
+          console.log('✅ Welcome message sent successfully:', response);
           return res.status(200).json({ ok: true });
         } catch (error) {
           console.error('❌ Error sending welcome message:', error);
+          if (error instanceof AxiosError) {
+            console.error('Error response:', error.response?.data);
+          }
           return res.status(500).json({ 
             error: 'Failed to send welcome message',
-            details: error instanceof Error ? error.message : 'Unknown error'
+            details: error instanceof Error ? error.message : 'Unknown error',
+            response: error instanceof AxiosError ? error.response?.data : undefined
           });
         }
       }
