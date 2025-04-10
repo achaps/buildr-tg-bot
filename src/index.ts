@@ -8,58 +8,6 @@ import { handleLeaderboard } from './bot/handlers/leaderboard';
 import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
-import axios, { AxiosError } from 'axios';
-import { Agent } from 'https';
-
-// Configuration d'axios avec un agent HTTPS personnalisé
-const httpsAgent = new Agent({
-  keepAlive: true,
-  timeout: 60000,
-  rejectUnauthorized: true
-});
-
-// Créer une instance axios pour l'API Telegram
-const telegramApi = axios.create({
-  baseURL: 'https://api.telegram.org',
-  timeout: 30000,
-  httpsAgent
-});
-
-// Fonction utilitaire pour les retries avec axios
-const retryWithAxios = async (method: string, endpoint: string, data?: any, retries = 5, delay = 1000) => {
-  try {
-    // Vérifier si le token commence déjà par "bot"
-    const token = env.BOT_TOKEN.startsWith('bot') ? env.BOT_TOKEN : `bot${env.BOT_TOKEN}`;
-    const url = `/${token}${endpoint}`;
-    console.log(`🔄 Making request to: ${method} ${url}`);
-    if (data) {
-      console.log('📦 Request data:', JSON.stringify(data, null, 2));
-    }
-    
-    const response = await telegramApi.request({
-      method,
-      url,
-      data,
-      timeout: 30000
-    });
-    console.log(`✅ Request successful: ${method} ${url}`);
-    return response.data;
-  } catch (error) {
-    if (error instanceof AxiosError) {
-      console.error(`❌ Request failed: ${method} ${endpoint}`, {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
-    }
-    
-    if (retries === 0) throw error;
-    console.log(`⚠️ Retry attempt ${6 - retries}/5...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return retryWithAxios(method, endpoint, data, retries - 1, delay * 2);
-  }
-};
 
 // Vérification des variables d'environnement
 console.log('🔍 Environment variables loaded successfully');
@@ -77,19 +25,17 @@ console.log('✅ Bot token format is valid');
 // Créer une instance Telegraf standard
 const bot = new Telegraf(env.BOT_TOKEN);
 
-// Test de connexion à l'API Telegram avec retry et axios
+// Test de connexion à l'API Telegram
 console.log('🔌 Testing connection to Telegram API...');
 console.log('🔑 Using bot token:', env.BOT_TOKEN.substring(0, 10) + '...');
-retryWithAxios('GET', '/getMe')
+
+bot.telegram.getMe()
   .then((botInfo) => {
     console.log('✅ Successfully connected to Telegram API');
     console.log('Bot info:', botInfo);
   })
   .catch((error) => {
-    console.error('❌ Failed to connect to Telegram API after retries:', error);
-    if (error.response) {
-      console.error('Error response:', error.response.data);
-    }
+    console.error('❌ Failed to connect to Telegram API:', error);
     process.exit(1);
   });
 
@@ -147,45 +93,10 @@ export default async function handler(req: Request, res: Response) {
       // Log the incoming update for debugging
       console.log('📦 Processing update:', JSON.stringify(req.body, null, 2));
       
-      // Traiter la commande /start directement
-      if (req.body.message && req.body.message.text === '/start') {
-        const chatId = req.body.message.chat.id;
-        const text = "👋 Welcome to BUILDR Network Bot!\n\nI'm here to help you earn points and participate in our community.";
-        
-        try {
-          console.log('📤 Sending welcome message to chat:', chatId);
-          const response = await retryWithAxios('POST', '/sendMessage', {
-            chat_id: chatId,
-            text: text,
-            parse_mode: 'HTML'
-          });
-          console.log('✅ Welcome message sent successfully:', response);
-          return res.status(200).json({ ok: true });
-        } catch (error) {
-          console.error('❌ Error sending welcome message:', error);
-          if (error instanceof AxiosError) {
-            console.error('Error response:', error.response?.data);
-          }
-          return res.status(500).json({ 
-            error: 'Failed to send welcome message',
-            details: error instanceof Error ? error.message : 'Unknown error',
-            response: error instanceof AxiosError ? error.response?.data : undefined
-          });
-        }
-      }
-      
-      // Pour les autres types de messages, utiliser Telegraf
-      try {
-        await bot.handleUpdate(req.body);
-        console.log('✅ Update processed successfully');
-        return res.status(200).json({ ok: true });
-      } catch (error) {
-        console.error('❌ Error handling update with Telegraf:', error);
-        return res.status(500).json({ 
-          error: 'Failed to process update with Telegraf',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
+      // Utiliser Telegraf pour traiter l'update
+      await bot.handleUpdate(req.body);
+      console.log('✅ Update processed successfully');
+      return res.status(200).json({ ok: true });
     } catch (error) {
       console.error('❌ Error handling update:', error);
       if (error instanceof Error) {
@@ -216,26 +127,23 @@ if (process.env.NODE_ENV !== 'development') {
     console.log('🔄 Setting up webhook...');
     console.log('📍 Webhook URL:', webhookUrl);
     
-    // Delete any existing webhook first with retry and axios
-    retryWithAxios('POST', '/deleteWebhook')
+    // Delete any existing webhook first
+    bot.telegram.deleteWebhook()
       .then(() => {
         console.log('✅ Existing webhook deleted');
-        // Set the new webhook with retry and axios
-        return retryWithAxios('POST', '/setWebhook', { url: webhookUrl });
+        // Set the new webhook
+        return bot.telegram.setWebhook(webhookUrl);
       })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
-        // Verify webhook info with retry and axios
-        return retryWithAxios('GET', '/getWebhookInfo');
+        // Verify webhook info
+        return bot.telegram.getWebhookInfo();
       })
       .then((info) => {
         console.log('ℹ️ Webhook info:', info);
       })
       .catch((error) => {
-        console.error('❌ Error setting webhook after retries:', error);
-        if (error.response) {
-          console.error('Error response:', error.response.data);
-        }
+        console.error('❌ Error setting webhook:', error);
       });
   } else {
     console.error('❌ No webhook URL available. Please check VERCEL_URL and WEBHOOK_URL environment variables.');
