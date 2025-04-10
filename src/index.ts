@@ -16,8 +16,8 @@ console.log('🔍 Environment variables loaded successfully');
 console.log('🚀 Starting bot initialization...');
 
 // Vérification du token du bot
-if (!env.BOT_TOKEN.match(/^\d+:[A-Za-z0-9_-]{35}$/)) {
-  console.error('❌ Invalid bot token format. Expected format: <bot_id>:<token>');
+if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
+  console.error('❌ Invalid bot token format. Expected format: bot<bot_id>:<token>');
   process.exit(1);
 }
 
@@ -32,7 +32,8 @@ const telegramApi = axios.create({
 // Fonction utilitaire pour les appels à l'API Telegram
 const callTelegramApi = async (method: string, data?: any) => {
   try {
-    const url = `/bot${env.BOT_TOKEN}/${method}`;
+    // Utiliser le token tel quel, car il contient déjà le préfixe "bot"
+    const url = `/${env.BOT_TOKEN}/${method}`;
     console.log(`🔄 Making request to: ${method}`);
     if (data) {
       console.log('📦 Request data:', JSON.stringify(data, null, 2));
