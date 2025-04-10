@@ -29,7 +29,19 @@ export const handleStart = async (ctx: Context) => {
       .single();
 
     if (existingUser) {
-      await ctx.reply(`👋 Welcome back! You already have ${formatPoints(existingUser.total_points)}.`);
+      // Message de bienvenue pour les utilisateurs existants
+      const welcomeBackMessage = `👋 Welcome back to BUILDR Network! \n\n` +
+                               `💰 Your current balance: ${formatPoints(existingUser.total_points)}\n\n` +
+                               `Available Commands:\n\n` +
+                               `💎 /points - Check your current balance\n\n` +
+                               `📅 /daily - Claim your daily reward (available every 24h)\n\n` +
+                               `📩 /invite - Get your referral link to earn ${formatPoints(REFERRAL_BONUS)} per friend\n\n` +
+                               `📊 /referrals - View your referral statistics\n\n` +
+                               `🏆 /leaderboard - See the top 10 earners\n\n` +
+                               `Make sure to be active on the group and follow the development of the project!\n\n` +
+                               `👉 @buildr_network`
+      
+      await ctx.reply(welcomeBackMessage);
       return;
     }
 
@@ -68,14 +80,23 @@ export const handleStart = async (ctx: Context) => {
 
     if (error) throw error;
 
-    let message = `🎉 Welcome to Buildr! You've received ${formatPoints(INITIAL_POINTS)} for joining.\n\n` +
-                 `To get started:\n\n` +
+    // Message d'introduction personnalisé pour les nouveaux utilisateurs
+    let message = `🚀 Welcome to BUILDR Network! \n\n` +
+                 `BUILDR Network is the first platform connecting Financiers, Builders & Community to create long-term ventures.\n\n` +
+                 `🎁 You've received ${formatPoints(INITIAL_POINTS)} for joining!\n\n` +
+                 `Available Commands:\n\n` +
+                 `💎 /points - Check your current balance\n\n` +
+                 `📅 /daily - Claim your daily reward (available every 24h)\n\n` +
+                 `📩 /invite - Get your referral link to earn ${formatPoints(REFERRAL_BONUS)} per friend\n\n` +
+                 `📊 /referrals - View your referral statistics\n\n` +
+                 `🏆 /leaderboard - See the top 10 earners\n\n` +
+                 `Next steps to unlock commands:\n\n` +
                  `1️⃣ Join our group: @buildr_network\n` +
                  `2️⃣ Introduce yourself in the General Hub: https://t.me/buildr_network/13\n\n` +
                  `These steps are required to access bot features and earn rewards!`;
 
     if (referredBy) {
-      message += `\n🎁 You were referred by another user!`;
+      message += `\n\n🎁 You were referred by another user!`;
     }
 
     await ctx.reply(message);

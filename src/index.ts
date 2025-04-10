@@ -5,9 +5,12 @@ import { handleStart } from './bot/handlers/start';
 import { handlePoints } from './bot/handlers/points';
 import { handleDaily } from './bot/handlers/daily';
 import { handleLeaderboard } from './bot/handlers/leaderboard';
+import { handleInvite } from './bot/handlers/invite';
+import { handleReferrals } from './bot/handlers/referrals';
 import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
-import { Request, Response } from 'express';
+import axios from 'axios';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Vérification des variables d'environnement
 console.log('🔍 Environment variables loaded successfully');
@@ -21,11 +24,11 @@ console.log('🔑 Token check:', {
   format: token.substring(0, 10) + '...'
 });
 
-// S'assurer que le token commence par "bot" mais éviter le double préfixe
-const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
+// Nettoyer le token en supprimant le préfixe "bot" s'il est déjà présent
+const cleanToken = token.startsWith('bot') ? token.substring(3) : token;
 console.log('🧹 Cleaned token format:', cleanToken.substring(0, 10) + '...');
 
-// Créer une instance Telegraf avec le token nettoyé et des options de timeout
+// Créer une instance Telegraf avec le token nettoyé
 const bot = new Telegraf(cleanToken, {
   handlerTimeout: 90000 // 90 secondes
 });
@@ -60,6 +63,15 @@ bot.command('start', async (ctx) => {
 bot.command('points', verifyGroupMembership, handlePoints);
 bot.command('daily', verifyGroupMembership, handleDaily);
 bot.command('leaderboard', verifyGroupMembership, handleLeaderboard);
+bot.command('invite', verifyGroupMembership, handleInvite);
+bot.command('referrals', verifyGroupMembership, handleReferrals);
+
+// Register callback handlers for inline buttons
+bot.action('check_balance', verifyGroupMembership, handlePoints);
+bot.action('daily_reward', verifyGroupMembership, handleDaily);
+bot.action('get_invite', verifyGroupMembership, handleInvite);
+bot.action('my_referrals', verifyGroupMembership, handleReferrals);
+bot.action('view_leaderboard', verifyGroupMembership, handleLeaderboard);
 
 // Error handling
 bot.catch((err: unknown, ctx: Context<Update>) => {
@@ -81,83 +93,151 @@ bot.catch((err: unknown, ctx: Context<Update>) => {
   }
 });
 
-// Export for Vercel
-export default async function handler(req: Request, res: Response) {
-  console.log('📥 Received request:', {
-    method: req.method,
-    path: req.path,
-    headers: req.headers,
-    body: req.body
-  });
-
-  if (req.method === 'POST') {
-    try {
-      // Validate the request body
-      if (!req.body) {
-        console.error('❌ No request body received');
-        return res.status(400).json({ error: 'No request body' });
-      }
-
-      // Log the incoming update for debugging
-      console.log('📦 Processing update:', JSON.stringify(req.body, null, 2));
-      
-      // Utiliser Telegraf pour traiter l'update
-      await bot.handleUpdate(req.body);
-      console.log('✅ Update processed successfully');
-      return res.status(200).json({ ok: true });
-    } catch (error) {
-      console.error('❌ Error handling update:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      return res.status(500).json({ 
-        error: 'Failed to process update',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  } else {
-    console.log('ℹ️ Received non-POST request');
-    return res.status(200).json({ ok: true, message: 'Bot is running' });
+// Vérifier le token avant de démarrer le bot
+async function verifyToken() {
+  try {
+    const response = await axios.get(`https://api.telegram.org/bot${cleanToken}/getMe`);
+    console.log('✅ Token verification successful:', response.data);
+    return true;
+  } catch (error) {
+    console.error('❌ Token verification failed:', error);
+    return false;
   }
 }
 
-// Start webhook mode if not in development
-if (process.env.NODE_ENV !== 'development') {
-  const webhookUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}/api/webhook`
-    : process.env.WEBHOOK_URL;
-
-  if (webhookUrl) {
-    console.log('🔄 Setting up webhook...');
-    console.log('📍 Webhook URL:', webhookUrl);
+// Fonction pour configurer le webhook
+async function setupWebhook() {
+  try {
+    const webhookUrl = env.WEBHOOK_URL;
+    console.log('🌐 Setting up webhook to:', webhookUrl);
     
-    // Supprimer d'abord le webhook existant
-    bot.telegram.deleteWebhook()
-      .then(() => {
-        console.log('✅ Existing webhook deleted');
-        // Configurer le nouveau webhook avec des options de connexion
-        return bot.telegram.setWebhook(webhookUrl, {
-          max_connections: 40,
-          allowed_updates: ['message', 'callback_query']
-        });
-      })
-      .then(() => {
-        console.log('✅ Webhook successfully set to:', webhookUrl);
-        return bot.telegram.getWebhookInfo();
-      })
-      .then((info) => {
-        console.log('ℹ️ Webhook info:', info);
-      })
-      .catch((error) => {
-        console.error('❌ Error setting webhook:', error);
-      });
-  } else {
-    console.error('❌ No webhook URL available. Please check VERCEL_URL and WEBHOOK_URL environment variables.');
+    // Vérifier que l'URL est valide
+    if (!webhookUrl || !webhookUrl.startsWith('https://')) {
+      console.error('❌ Invalid webhook URL:', webhookUrl);
+      return false;
+    }
+    
+    // Configurer le webhook avec Telegram
+    const response = await axios.post(`https://api.telegram.org/bot${cleanToken}/setWebhook`, {
+      url: webhookUrl,
+      drop_pending_updates: true,
+      allowed_updates: ["message", "callback_query", "chat_member"]
+    });
+    
+    console.log('✅ Webhook setup response:', response.data);
+    return response.data.ok === true;
+  } catch (error) {
+    console.error('❌ Error setting up webhook:', error);
+    return false;
   }
+}
+
+// Fonction pour supprimer le webhook
+async function removeWebhook() {
+  try {
+    console.log('🗑️ Removing webhook');
+    const response = await axios.post(`https://api.telegram.org/bot${cleanToken}/setWebhook`, {
+      url: ""
+    });
+    
+    console.log('✅ Webhook removal response:', response.data);
+    return response.data.ok === true;
+  } catch (error) {
+    console.error('❌ Error removing webhook:', error);
+    return false;
+  }
+}
+
+// Fonction pour obtenir les informations du webhook
+async function getWebhookInfo() {
+  try {
+    console.log('ℹ️ Getting webhook info');
+    const response = await axios.get(`https://api.telegram.org/bot${cleanToken}/getWebhookInfo`);
+    
+    console.log('✅ Webhook info:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error getting webhook info:', error);
+    return null;
+  }
+}
+
+// Fonction pour démarrer le bot en mode polling (développement)
+async function startPolling() {
+  console.log('🔧 Starting bot in polling mode...');
+  try {
+    await verifyToken();
+    await bot.launch();
+    console.log('✅ Bot started successfully in polling mode');
+  } catch (error) {
+    console.error('❌ Error starting bot in polling mode:', error);
+  }
+}
+
+// Fonction pour gérer les requêtes webhook (production)
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log('📥 Received webhook request:', {
+    method: req.method,
+    path: req.url,
+    headers: req.headers,
+    body: req.body
+  });
+  
+  // Vérifier la méthode HTTP
+  if (req.method !== 'POST') {
+    console.log('❌ Invalid HTTP method:', req.method);
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  
+  try {
+    // Traiter la mise à jour Telegram
+    await bot.handleUpdate(req.body);
+    console.log('✅ Update handled successfully');
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('❌ Error handling update:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Démarrer le bot en fonction de l'environnement
+if (process.env.NODE_ENV === 'development') {
+  // En développement, utiliser le mode polling
+  startPolling();
+  
+  // Activer l'arrêt gracieux
+  process.once('SIGINT', () => {
+    console.log('🛑 Received SIGINT, stopping bot...');
+    bot.stop('SIGINT');
+  });
+  
+  process.once('SIGTERM', () => {
+    console.log('🛑 Received SIGTERM, stopping bot...');
+    bot.stop('SIGTERM');
+  });
 } else {
-  console.log('🔧 Development mode detected, skipping webhook setup');
+  // En production, configurer le webhook
+  console.log('🚀 Starting bot in webhook mode...');
+  
+  // Vérifier le token et configurer le webhook au démarrage
+  verifyToken()
+    .then(isValid => {
+      if (isValid) {
+        return setupWebhook();
+      }
+      throw new Error('Invalid bot token');
+    })
+    .then(success => {
+      if (success) {
+        console.log('✅ Webhook configured successfully');
+        return getWebhookInfo();
+      }
+      throw new Error('Failed to configure webhook');
+    })
+    .then(info => {
+      console.log('ℹ️ Webhook info:', info);
+    })
+    .catch(error => {
+      console.error('❌ Error in production setup:', error);
+    });
 } 
