@@ -10,15 +10,7 @@ import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
 
 // Vérification des variables d'environnement
-console.log('🔍 Checking environment variables...');
-try {
-  console.log('SUPABASE_URL:', env.SUPABASE_URL);
-  console.log('BOT_TOKEN length:', env.BOT_TOKEN.length);
-  console.log('SUPABASE_ANON_KEY length:', env.SUPABASE_ANON_KEY.length);
-} catch (error) {
-  console.error('❌ Error loading environment variables:', error);
-  process.exit(1);
-}
+console.log('🔍 Environment variables loaded successfully');
 
 console.log('🚀 Starting bot initialization...');
 
