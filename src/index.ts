@@ -5,6 +5,8 @@ import { handleStart } from './bot/handlers/start';
 import { handlePoints } from './bot/handlers/points';
 import { handleDaily } from './bot/handlers/daily';
 import { handleLeaderboard } from './bot/handlers/leaderboard';
+import { handleGroupMessage } from './bot/handlers/groupActivity';
+import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
 
 // Vérification des variables d'environnement
@@ -42,26 +44,19 @@ bot.telegram.getMe()
     process.exit(1);
   });
 
-// Register command handlers
-bot.command('start', (ctx) => {
-  console.log('📥 Received /start command from user:', ctx.from?.id, 'username:', ctx.from?.username);
-  return handleStart(ctx);
+// Register message handler for group activity
+bot.on('message', async (ctx, next) => {
+  if (ctx.chat?.id.toString() === '@buildr_network') {
+    await handleGroupMessage(ctx);
+  }
+  return next();
 });
 
-bot.command('points', (ctx) => {
-  console.log('📥 Received /points command from user:', ctx.from?.id, 'username:', ctx.from?.username);
-  return handlePoints(ctx);
-});
-
-bot.command('daily', (ctx) => {
-  console.log('📥 Received /daily command from user:', ctx.from?.id, 'username:', ctx.from?.username);
-  return handleDaily(ctx);
-});
-
-bot.command('leaderboard', (ctx) => {
-  console.log('📥 Received /leaderboard command from user:', ctx.from?.id, 'username:', ctx.from?.username);
-  return handleLeaderboard(ctx);
-});
+// Register command handlers with group verification
+bot.command('start', handleStart);
+bot.command('points', verifyGroupMembership, handlePoints);
+bot.command('daily', verifyGroupMembership, handleDaily);
+bot.command('leaderboard', verifyGroupMembership, handleLeaderboard);
 
 // Error handling
 bot.catch((err: unknown, ctx: Context<Update>) => {

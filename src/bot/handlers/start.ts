@@ -68,7 +68,12 @@ export const handleStart = async (ctx: Context) => {
 
     if (error) throw error;
 
-    let message = `🎉 Welcome to Buildr! You've received ${formatPoints(INITIAL_POINTS)} for joining.`;
+    let message = `🎉 Welcome to Buildr! You've received ${formatPoints(INITIAL_POINTS)} for joining.\n\n` +
+                 `To get started:\n\n` +
+                 `1️⃣ Join our group: @buildr_network\n` +
+                 `2️⃣ Introduce yourself in the General Hub: https://t.me/buildr_network/13\n\n` +
+                 `These steps are required to access bot features and earn rewards!`;
+
     if (referredBy) {
       message += `\n🎁 You were referred by another user!`;
     }
