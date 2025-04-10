@@ -8,16 +8,37 @@ import { handleLeaderboard } from './bot/handlers/leaderboard';
 import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
+import axios from 'axios';
+import { Agent } from 'https';
 
-// Fonction utilitaire pour les retries
-const retry = async (fn: () => Promise<any>, retries = 3, delay = 1000) => {
+// Configuration d'axios avec un agent HTTPS personnalisé
+const httpsAgent = new Agent({
+  keepAlive: true,
+  timeout: 60000,
+  rejectUnauthorized: true
+});
+
+const api = axios.create({
+  baseURL: `https://api.telegram.org/bot${env.BOT_TOKEN}`,
+  timeout: 30000,
+  httpsAgent
+});
+
+// Fonction utilitaire pour les retries avec axios
+const retryWithAxios = async (method: string, url: string, data?: any, retries = 5, delay = 1000) => {
   try {
-    return await fn();
+    const response = await api.request({
+      method,
+      url,
+      data,
+      timeout: 30000
+    });
+    return response.data;
   } catch (error) {
     if (retries === 0) throw error;
-    console.log(`⚠️ Retry attempt ${4 - retries}/3...`);
+    console.log(`⚠️ Retry attempt ${6 - retries}/5...`);
     await new Promise(resolve => setTimeout(resolve, delay));
-    return retry(fn, retries - 1, delay * 2);
+    return retryWithAxios(method, url, data, retries - 1, delay * 2);
   }
 };
 
@@ -27,8 +48,8 @@ console.log('🔍 Environment variables loaded successfully');
 console.log('🚀 Starting bot initialization...');
 
 // Vérification du token du bot
-if (!env.BOT_TOKEN.match(/^\d+:[A-Za-z0-9_-]{35}$/)) {
-  console.error('❌ Invalid bot token format. Expected format: <bot_id>:<token>');
+if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
+  console.error('❌ Invalid bot token format. Expected format: bot<bot_id>:<token>');
   process.exit(1);
 }
 
@@ -36,9 +57,9 @@ console.log('✅ Bot token format is valid');
 
 const bot = new Telegraf(env.BOT_TOKEN);
 
-// Test de connexion à l'API Telegram avec retry
+// Test de connexion à l'API Telegram avec retry et axios
 console.log('🔌 Testing connection to Telegram API...');
-retry(() => bot.telegram.getMe())
+retryWithAxios('GET', '/getMe')
   .then((botInfo) => {
     console.log('✅ Successfully connected to Telegram API');
     console.log('Bot info:', botInfo);
@@ -135,17 +156,17 @@ if (process.env.NODE_ENV !== 'development') {
     console.log('🔄 Setting up webhook...');
     console.log('📍 Webhook URL:', webhookUrl);
     
-    // Delete any existing webhook first with retry
-    retry(() => bot.telegram.deleteWebhook())
+    // Delete any existing webhook first with retry and axios
+    retryWithAxios('POST', '/deleteWebhook')
       .then(() => {
         console.log('✅ Existing webhook deleted');
-        // Set the new webhook with retry
-        return retry(() => bot.telegram.setWebhook(webhookUrl));
+        // Set the new webhook with retry and axios
+        return retryWithAxios('POST', '/setWebhook', { url: webhookUrl });
       })
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
-        // Verify webhook info with retry
-        return retry(() => bot.telegram.getWebhookInfo());
+        // Verify webhook info with retry and axios
+        return retryWithAxios('GET', '/getWebhookInfo');
       })
       .then((info) => {
         console.log('ℹ️ Webhook info:', info);
