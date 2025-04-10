@@ -8,70 +8,9 @@ import { handleLeaderboard } from './bot/handlers/leaderboard';
 import { handleGroupMessage } from './bot/handlers/groupActivity';
 import { verifyGroupMembership } from './bot/middleware/groupVerification';
 import { Request, Response } from 'express';
-import axios from 'axios';
 
 // Vérification des variables d'environnement
 console.log('🔍 Environment variables loaded successfully');
-
-console.log('🚀 Starting bot initialization...');
-
-// Vérification du token du bot
-const token = env.BOT_TOKEN;
-console.log('🔑 Token format check:', {
-  length: token.length,
-  startsWithBot: token.startsWith('bot'),
-  containsColon: token.includes(':'),
-  format: token.substring(0, 10) + '...'
-});
-
-// Vérification basique du format du token
-if (!token.includes(':')) {
-  console.error('❌ Invalid bot token format. Token must contain a colon (:)');
-  process.exit(1);
-}
-
-console.log('✅ Bot token format is valid');
-
-// Créer une instance axios pour l'API Telegram
-const telegramApi = axios.create({
-  baseURL: 'https://api.telegram.org',
-  timeout: 30000
-});
-
-// Fonction utilitaire pour les appels à l'API Telegram
-const callTelegramApi = async (method: string, data?: any) => {
-  try {
-    // S'assurer que le token n'a qu'un seul préfixe "bot"
-    const cleanToken = token.startsWith('bot') ? token : `bot${token}`;
-    const url = `/${cleanToken}/${method}`;
-    
-    console.log(`🔄 Making request to: ${method}`);
-    if (data) {
-      console.log('📦 Request data:', JSON.stringify(data, null, 2));
-    }
-    
-    const response = await telegramApi.post(url, data);
-    console.log(`✅ Request successful: ${method}`);
-    return response.data;
-  } catch (error) {
-    console.error(`❌ Request failed: ${method}`, error);
-    throw error;
-  }
-};
-
-// Test de connexion à l'API Telegram
-console.log('🔌 Testing connection to Telegram API...');
-console.log('�� Using bot token:', token.substring(0, 10) + '...');
-
-callTelegramApi('getMe')
-  .then((botInfo) => {
-    console.log('✅ Successfully connected to Telegram API');
-    console.log('Bot info:', botInfo);
-  })
-  .catch((error) => {
-    console.error('❌ Failed to connect to Telegram API:', error);
-    process.exit(1);
-  });
 
 // Créer une instance Telegraf standard
 const bot = new Telegraf(env.BOT_TOKEN);
@@ -164,17 +103,10 @@ if (process.env.NODE_ENV !== 'development') {
     console.log('🔄 Setting up webhook...');
     console.log('📍 Webhook URL:', webhookUrl);
     
-    // Delete any existing webhook first
-    callTelegramApi('deleteWebhook')
-      .then(() => {
-        console.log('✅ Existing webhook deleted');
-        // Set the new webhook
-        return callTelegramApi('setWebhook', { url: webhookUrl });
-      })
+    bot.telegram.setWebhook(webhookUrl)
       .then(() => {
         console.log('✅ Webhook successfully set to:', webhookUrl);
-        // Verify webhook info
-        return callTelegramApi('getWebhookInfo');
+        return bot.telegram.getWebhookInfo();
       })
       .then((info) => {
         console.log('ℹ️ Webhook info:', info);
