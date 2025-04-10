@@ -38,7 +38,7 @@ bot.telegram.getMe()
 
 // Register message handler for group activity
 bot.on('message', async (ctx, next) => {
-  if (ctx.chat?.id.toString() === '@buildr_network') {
+  if (ctx.chat?.type === 'supergroup' && ctx.chat.username === 'buildr_network') {
     await handleGroupMessage(ctx);
   }
   return next();
