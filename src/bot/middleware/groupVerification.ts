@@ -19,7 +19,7 @@ export const verifyGroupMembership = async (ctx: Context, next: () => Promise<vo
       await ctx.reply(
         `⚠️ You must join our group to use this feature!\n\n` +
         `Please join: ${REQUIRED_GROUP}\n\n` +
-        'Once you've joined, try your command again!'
+        'Once you\'ve joined, try your command again!'
       );
       return;
     }
