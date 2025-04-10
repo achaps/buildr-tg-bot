@@ -55,7 +55,13 @@ if (!env.BOT_TOKEN.match(/^bot\d+:[A-Za-z0-9_-]{35}$/)) {
 
 console.log('✅ Bot token format is valid');
 
-const bot = new Telegraf(env.BOT_TOKEN);
+// Créer une instance Telegraf avec des options personnalisées
+const bot = new Telegraf(env.BOT_TOKEN, {
+  telegram: {
+    apiRoot: `https://api.telegram.org/bot${env.BOT_TOKEN}`,
+    webhookReply: false
+  }
+});
 
 // Test de connexion à l'API Telegram avec retry et axios
 console.log('🔌 Testing connection to Telegram API...');
@@ -123,7 +129,27 @@ export default async function handler(req: Request, res: Response) {
       // Log the incoming update for debugging
       console.log('📦 Processing update:', JSON.stringify(req.body, null, 2));
       
-      await bot.handleUpdate(req.body);
+      // Utiliser notre instance axios personnalisée pour envoyer la réponse
+      const update = req.body;
+      await bot.handleUpdate(update);
+      
+      // Envoyer la réponse manuellement
+      if (update.message && update.message.chat && update.message.chat.id) {
+        const chatId = update.message.chat.id;
+        const text = "👋 Welcome to BUILDR Network Bot!\n\nI'm here to help you earn points and participate in our community.";
+        
+        try {
+          await retryWithAxios('POST', '/sendMessage', {
+            chat_id: chatId,
+            text: text,
+            parse_mode: 'HTML'
+          });
+          console.log('✅ Welcome message sent successfully');
+        } catch (error) {
+          console.error('❌ Error sending welcome message:', error);
+        }
+      }
+      
       console.log('✅ Update processed successfully');
       return res.status(200).json({ ok: true });
     } catch (error) {
